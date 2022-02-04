@@ -1,5 +1,6 @@
 import random
 from random import randint
+from time import time
 
 
 class User:
@@ -37,7 +38,7 @@ class Account(User):
         self.money = 0
         self.card_number = "".join([str(randint(0, 9)) for _ in range(16)])
         self.transactions = list()
-        self.welsh = (0, 0)  # monthly_cost, duration
+        self.welsh = (0, 0, 0)  # monthly_cost, remain_duration, start_time
 
     def __eq__(self, other):
         return self.card_number == other.card_number
@@ -77,6 +78,28 @@ class Account(User):
     def set_welsh(self, welsh):
         self.welsh = welsh
 
+    def get_welsh(self):
+        return self.welsh
+
+
+def welsh_wrapper(func):
+    def wrap(*args, **kwargs):
+        now = int(time())
+        for account in args[0].accounts:
+            welsh = account.get_welsh()
+            if welsh[0]:
+                time_diff = int((now - welsh[2]) / 20)
+                print(time_diff)
+                if time_diff >= welsh[1]:
+                    time_diff = welsh[1]
+                    account.set_welsh((0, 0, 0))
+                else:
+                    account.set_welsh((welsh[0], welsh[1] - time_diff, welsh[2]))
+                account.change_money(-welsh[0] * time_diff)
+        return func(*args, **kwargs)
+
+    return wrap
+
 
 class Controller:
     def __init__(self):
@@ -84,10 +107,16 @@ class Controller:
         self.accounts = set()
         self.online = None
 
+    @welsh_wrapper
     def signup(self, name, code, password, phone_number, email):
         user = User(name, code, password, phone_number, email)
-        self.users.add(user)
+        if user in self.users:
+            print('This user already exists! :(')
+        else:
+            self.users.add(user)
+            print('successful! :)')
 
+    @welsh_wrapper
     def login(self, code, password):
         user = User(name=None, code=code, password=password, phone_number=None, email=None)
         if user in self.users:
@@ -99,6 +128,7 @@ class Controller:
         else:
             print('code or password is wrong!')
 
+    @welsh_wrapper
     def logout(self):
         if self.online:
             print(f'Goodbye {self.online.name} :(')
@@ -106,6 +136,7 @@ class Controller:
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def create_account(self, alias, acc_password):
         if self.online:
             account = Account(self.online, alias, acc_password)
@@ -115,6 +146,7 @@ class Controller:
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def show_accounts_info(self):
         if self.online:
             for acc in self.online.get_accounts():
@@ -122,12 +154,14 @@ class Controller:
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def create_useful_list(self, alias, lst):
         if self.online:
             self.online.set_useful_accounts(alias, lst)
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def send_money(self, money, source, destination, password):
         if self.online:
             user = User(name=None, code=None, password=None, phone_number=None, email=None)
@@ -155,7 +189,8 @@ class Controller:
         else:
             print(f'nobody online :)')
 
-    def paying_bill(self, bill_key, pay_key):
+    @welsh_wrapper
+    def paying_bill(self, bill_key=0, pay_key=0):
         if self.online:
             if len(self.online.get_accounts()) == 0:
                 print('This user has no account!')
@@ -164,15 +199,18 @@ class Controller:
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def welsh(self, money, duration):
         if self.online:
             if len(self.online.get_accounts()) == 0:
                 print('This user has no account!')
             else:
-                list(self.online.get_accounts())[0].set_welsh((money, duration))
+                list(self.online.get_accounts())[0].set_welsh((int(money) / int(duration), int(duration), int(time())))
+                print('set welsh successful! :D')
         else:
             print(f'nobody online :)')
 
+    @welsh_wrapper
     def close_account(self, password):
         if self.online:
             if len(self.online.get_accounts()) == 0:
@@ -222,3 +260,4 @@ class Controller:
 if __name__ == '__main__':
     controller = Controller()
     controller.run_shell()
+
